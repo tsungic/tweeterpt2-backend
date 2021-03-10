@@ -1,5 +1,5 @@
 from flask import Flask, request, Response
-
+from flask_cors import CORS
 import dbcreds
 import mariadb
 import json
@@ -7,6 +7,7 @@ import secrets
 
 
 app = Flask(__name__)
+CORS(app)
 
 
 @app.route("/api/users", methods=["GET","POST","PATCH","DELETE"])
@@ -295,7 +296,7 @@ def user_follows():
                 if users_data != None or users_data == []:
                     users_list =[]
                     for user in users_data:
-                        #refrence select statment order above
+                        #reference select statment order above
                         user_dic = {
                             "userId": user[0],
                             "email": user[1],
@@ -303,13 +304,13 @@ def user_follows():
                             "bio": user[3],
                             "birthdate": user[4]
                         }
-                        #add dictionry to user list
+                        #add dictionary to user list
                         users_list.append(user_dic)
                     return Response(json.dumps(users_list, default=str), mimetype="application/json", status=200)
                 else:   
                     return Response("Failed", mimetype="text/html", status=400)
     if request.method == "POST":
-        #the one making follow request must have logged in sucesfully
+        #the one making follow request must have logged in successfully
         login_token = request.json.get("loginToken")
         #my id
         followId = request.json.get("followId")
@@ -346,7 +347,7 @@ def user_follows():
         try:
             conn = mariadb .connect(user=dbcreds.user, password=dbcreds.password, host= dbcreds.host, port= dbcreds.port, database= dbcreds.database)
             cursor = conn.cursor()
-            #get my id fisrt- the one making request
+            #get my id first- the one making request
             cursor.execute("SELECT user_id from user_session where loginToken =?", [login_token])
             user_id = cursor.fetchone()[0]
             #userid of other user
@@ -388,11 +389,9 @@ def user_followers():
                 if(conn != None):
                     conn.rollback()
                     conn.close()
-                    #or if users isnt following anyone- empty array
                 if users_data != None or users_data == []:
                     users_list =[]
                     for user in users_data:
-                        #refrence select statment order
                         user_dic = {
                             "userId": user[0],
                             "email": user[1],
@@ -400,7 +399,6 @@ def user_followers():
                             "bio": user[3],
                             "birthdate": user[4]
                         }
-                        #add dictionry to user list
                         users_list.append(user_dic)
                     return Response(json.dumps(users_list, default=str), mimetype="application/json", status=200)
                 else:   
@@ -462,11 +460,9 @@ def tweet():
             cursor = conn.cursor()
             cursor.execute("SELECT user_id FROM user_session WHERE loginToken = ?", [login_token])
             user_id = cursor.fetchone()[0]
-            print(user_id)
             cursor.execute("INSERT INTO tweet(user_id, content) VALUES (?,?)", [user_id, content])
             conn.commit() 
             tweet_id = cursor.lastrowid
-            print(tweet_id)
             cursor.execute("SELECT * FROM users u INNER JOIN tweet t ON u.id = t.user_id where t.id = ?", [tweet_id])
             tweet = cursor.fetchone()
         except Exception as e:
@@ -477,7 +473,6 @@ def tweet():
             if(conn != None):
                 conn.rollback()
                 conn.close()
-                #if there is tweet data or if it is empty
             if tweet or tweet ==[]:
                 tweet_dic={
                     "tweetId": tweet[6],
@@ -552,8 +547,6 @@ def tweet():
     
 
 
-
-
 @app.route("/api/comments", methods=["GET","POST","PATCH","DELETE"])
 def comment():
     if request.method == "GET":
@@ -564,12 +557,10 @@ def comment():
         try:
             conn = mariadb .connect(user=dbcreds.user, password=dbcreds.password, host= dbcreds.host, port= dbcreds.port, database= dbcreds.database)
             cursor = conn.cursor()
-            #if there is specific userid
             if tweet_id:
                 cursor.execute("SELECT c.id, t.id, u.id, u.username, c.content, c.createdAt FROM tweet t INNER JOIN comment c INNER JOIN users u ON t.id = c.tweet_id and u.id = c.user_id WHERE t.id = ?", [tweet_id])
                 comments_data = cursor.fetchall()
             else:
-                #if you want all tweets
                 cursor.execute("SELECT * FROM users u INNER JOIN tweet t ON u.id = t.user_id")
                 tweet_data = cursor.fetchall()
         except Exception as e:
@@ -580,10 +571,8 @@ def comment():
             if(conn != None):
                 conn.rollback()
                 conn.close()
-                #if there is tweet data or if it is empty
         if comments_data or comments_data ==[]:
             comments_info =[]
-            #create for loop
             for comment in comments_data:
                 comment_dic={
                     "commentId": comment[0],
@@ -638,66 +627,245 @@ def comment():
                 return Response(json.dumps(comment_dic, default = str), mimetype="application/json", status=201)
             else:
                 return Response("failure", mimetype="html/text", status=400)
-    # if request.method == "PATCH":
-    #     login_token = request.json.get("loginToken")
-    #     tweet_id = request.json.get("tweetId")
-    #     content = request.json.get("content")
-    #     conn = None
-    #     cursor = None 
-    #     user_id = None
-    #     rows= None
-    #     try:
-    #         conn = mariadb .connect(user=dbcreds.user, password=dbcreds.password, host= dbcreds.host, port= dbcreds.port, database= dbcreds.database)
-    #         cursor = conn.cursor()
-    #         cursor.execute("SELECT user_id FROM user_session WHERE loginToken = ?", [login_token])
-    #         user_id = cursor.fetchone()[0]
-    #         cursor.execute("UPDATE tweet SET content = ? WHERE id=? AND user_id =?", [content, tweet_id, user_id])
-    #         conn.commit() 
-    #         rows = cursor.rowcount
-    #     except Exception as e:
-    #         print(e)
-    #     finally:
-    #         if(cursor !=None):
-    #             cursor.close()
-    #         if(conn != None):
-    #             conn.rollback()
-    #             conn.close()
-    #             #tweetid and content come with request
-    #         if rows != None:
-    #             response_dic={
-    #                 "tweetId": tweet_id,
-    #                 "content": content,
-    #             }
-    #             return Response(json.dumps(response_dic, default = str), mimetype="application/json", status=200)
-    #         else:
-    #             return Response("failure", mimetype="html/text", status=400)
-    # if request.method == "DELETE":
-    #     login_token = request.json.get("loginToken")
-    #     tweet_id = request.json.get("tweetId")
-    #     conn = None
-    #     cursor = None 
-    #     user_id = None
-    #     rows= None
-    #     try:
-    #         conn = mariadb .connect(user=dbcreds.user, password=dbcreds.password, host= dbcreds.host, port= dbcreds.port, database= dbcreds.database)
-    #         cursor = conn.cursor()
-    #         cursor.execute("SELECT user_id FROM user_session WHERE loginToken = ?", [login_token])
-    #         user_id = cursor.fetchone()[0]
-    #         cursor.execute("DELETE FROM tweet WHERE id=? AND user_id =?", [tweet_id, user_id])
-    #         conn.commit() 
-    #         rows = cursor.rowcount
-    #     except Exception as e:
-    #         print(e)
-    #     finally:
-    #         if(cursor !=None):
-    #             cursor.close()
-    #         if(conn != None):
-    #             conn.rollback()
-    #             conn.close()
-    #         if rows != None:
-    #             return Response("Delete success", mimetype="html/text", status=204)
-    #         else:
-    #             return Response("failure", mimetype="html/text", status=400)
-    
+
+    if request.method == "PATCH":
+        login_token = request.json.get("loginToken")
+        comment_id = request.json.get("commentId")
+        content = request.json.get("content")
+        if (len(content) > 150):
+            return Response("comment too long: 150 character limit", mimetype="html/text", status=400)
+        conn = None
+        cursor = None 
+        user_id = None
+        rows= None
+        comment_data = None
+        try:
+            conn = mariadb .connect(user=dbcreds.user, password=dbcreds.password, host= dbcreds.host, port= dbcreds.port, database= dbcreds.database)
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id FROM user_session WHERE loginToken = ?", [login_token])
+            user = cursor.fetchone()[0]
+            cursor.execute("SELECT * FROM users u INNER JOIN comment c ON u.id = c.user_id WHERE c.id = ?", [comment_id])
+            comment_id = cursor.lastrowid
+            cursor.execute("UPDATE comment SET content = ? WHERE id=? AND user_id =?", [content, commentId, userId])
+            conn.commit() 
+            rows = cursor.rowcount
+        except Exception as e:
+            print(e)
+        finally:
+            if(cursor !=None):
+                cursor.close()
+            if(conn != None):
+                conn.rollback()
+                conn.close()
+            if comment_data or comment_data ==[]:
+                comment_dic={
+                    "commentId": comment[6],
+                    "tweetId": comment[10],
+                    "userId": comment [0],
+                    "username": comment [5],
+                    "content": comment [8],
+                    "createdAt": comment [9]
+                }
+                return Response(json.dumps(comment_dic, default = str), mimetype="application/json", status=200)
+            else:
+                return Response("failure", mimetype="html/text", status=400)
+    if request.method == "DELETE":
+        login_token = request.json.get("loginToken")
+        comment_id = request.json.get("commentId")
+        conn = None
+        cursor = None 
+        user_id = None
+        rows= None
+        try:
+            conn = mariadb .connect(user=dbcreds.user, password=dbcreds.password, host= dbcreds.host, port= dbcreds.port, database= dbcreds.database)
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id FROM user_session WHERE loginToken = ?", [login_token])
+            user_id = cursor.fetchone()[0]
+            cursor.execute("DELETE FROM comment WHERE id=? AND user_id =?", [comment_id, user_id])
+            conn.commit() 
+            rows = cursor.rowcount
+        except Exception as e:
+            print(e)
+        finally:
+            if(cursor !=None):
+                cursor.close()
+            if(conn != None):
+                conn.rollback()
+                conn.close()
+            if rows != None:
+                return Response("Delete success", mimetype="html/text", status=204)
+            else:
+                return Response("failure", mimetype="html/text", status=400)
+
+
+@app.route("/api/tweet_likes", methods=["GET","POST","DELETE"])
+def tweet_like():
+    if request.method =="GET":
+        tweet_id = request.args.get("tweetId")
+        conn = None
+        cursor = None
+        try:
+            conn = mariadb .connect(user=dbcreds.user, password=dbcreds.password, host= dbcreds.host, port= dbcreds.port, database= dbcreds.database)
+            cursor = conn.cursor()
+            if user_id:
+                cursor.execute("SELECT * FROM users u INNER JOIN tweet_like tl ON u.id = tl.user_id WHERE u.id = ?", [user_id])
+                tweetlike_data = cursor.fetchall()
+            else:
+                cursor.execute("SELECT * FROM users u INNER JOIN tweet_like tl ON u.id = tl.user_id")
+                tweetlike_data = cursor.fetchall()
+        except Exception as e:
+            print(e)
+        finally:
+            if(cursor !=None):
+                cursor.close()
+            if(conn != None):
+                conn.rollback()
+                conn.close()
+        if tweetlike_data or tweetlike_data ==[]:
+            tweetlike_info =[]
+            for tweetlike in tweetlike_data:
+                tweetlike_dic={
+                    "tweetId": tweetlike[8],
+                    "userId": tweetlike [0],
+                    "username": tweetlike[5]
+                }
+                tweetlike_info.append(tweetlike_dic)
+            return Response(json.dumps(tweetlike_info, default = str), mimetype="application/json", status=200)
+        else:
+            return Response("failure", mimetype="html/text", status=400)
+    if request.method == "POST":
+    # An error will be returned if the loginToken or tweetId is invalid. 
+    # An error will also be sent if the user has already 'liked' the tweet
+        login_token = request.json.get("loginToken")
+        tweet_id = request.json.get("tweedId")
+        rows = None
+        if login_token !=None and login_token !=""
+            try:
+                conn = mariadb .connect(user=dbcreds.user, password=dbcreds.password, host= dbcreds.host, port= dbcreds.port, database= dbcreds.database)
+                cursor = conn.cursor()
+                cursor.execute("SELECT user_id from user_session where loginToken =?", [login_token])
+                user_id = cursor.fetchone()[0]
+                cursor.execute("INSERT INTO tweet_like (user_id, tweet.id) VALUES (?,?)", [user_id, tweet_likeId])
+                conn.commit()
+                rows = cursor.rowcount
+            except Exception as e:
+                print(e)
+            finally: 
+                if(cursor !=None):
+                    cursor.close()
+                if(conn != None):
+                    conn.rollback()
+                    conn.close()
+                if(rows != None and rows==1):
+                    return Response("liked", mimetype="text/html", status =204)
+                else:
+                    return Response ("Failed", mimetype="text/html", status= 400)
+    if request.method == "DELETE":
+        # An error will be returned if the loginToken and tweetId combo are 
+        # not valid (the user has not liked that tweet or that tweet does not exist).
+            login_token = request.json.get("loginToken")
+            tweetId = request.json.get("tweetId")
+            rows = None
+            try:
+                conn = mariadb .connect(user=dbcreds.user, password=dbcreds.password, host= dbcreds.host, port= dbcreds.port, database= dbcreds.database)
+                cursor = conn.cursor()       
+                cursor.execute("SELECT user_id from user_session where loginToken =?", [login_token])
+                user_id = cursor.fetchone()[0]
+                cursor.execute("DELETE FROM tweet_like WHERE id=? AND user_id =?", [tweet_like_id, user_id])
+                conn.commit() 
+                rows = cursor.rowcount
+        except Exception as e:
+            print(e)
+        finally:
+            if(cursor !=None):
+                cursor.close()
+            if(conn != None):
+                conn.rollback()
+                conn.close()
+            if rows != None:
+                return Response("Delete success", mimetype="html/text", status=204)
+            else:
+                return Response("failure", mimetype="html/text", status=400)
+
+@app.route("/api/comment_likes", methods=["GET","POST","DELETE"])
+def comment_like():
+    if request.method =="GET":
+        comment_id request.args.get("commentId")
+        conn = None
+        cursor = None
+        comment_like = None
+        try:
+            conn = mariadb .connect(user=dbcreds.user, password=dbcreds.password, host= dbcreds.host, port= dbcreds.port, database= dbcreds.database)
+            cursor = conn.cursor()
+            if comment_like_id:
+                cursor.execute("SELECT * FROM users u INNER JOIN comment_like cl ON u.id = cl.user_id WHERE u.id = ?", [user_id])
+                comment_like_data = cursor.fetchall()
+            else:
+                cursor.execute("SELECT * FROM users u INNER JOIN comment_like ON u.id = cl.user_id")
+                tweet_data = cursor.fetchall()
+        except Exception as e:
+            print(e)
+        finally:
+            if(cursor !=None):
+                cursor.close()
+            if(conn != None):
+                conn.rollback()
+                conn.close()
+        if comment_like_data or comment_like_data ==[]:
+            comment_like_info =[]
+            for comment_like in comment_like_data:
+                tweet_dic={
+                    "commentId": comment_like[8],
+                    "userId": tweet [0],
+                    "username": tweet[5]
+                }
+                tweet_info.append(tweet_dic)
+            return Response(json.dumps(comment_like_info, default = str), mimetype="application/json", status=200)
+        else:
+            return Response("failure", mimetype="html/text", status=400)
+    if request.method == "POST":
+        login_token = request.json.get("loginToken")
+        comment_id = request.json.get("commentId")
+        conn = None
+        cursor = None
+        comment_like = None
+        comment_id = None
+        user_id = None
+        try:
+            conn = mariadb .connect(user=dbcreds.user, password=dbcreds.password, host= dbcreds.host, port= dbcreds.port, database= dbcreds.database)
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id FROM user_session WHERE loginToken = ?", [login_token])
+            user_id = cursor.fetchone()[0]
+            cursor.execute("INSERT INTO comment_like(id, user_id) VALUES (?,?)", [comment_like_id, user_id])
+            conn.commit() 
+            comment_like_id = cursor.lastrowid
+            cursor.execute("SELECT * FROM users u INNER JOIN comment_like cl ON u.id = cl.user_id where cl.id = ?", [comment_like_id])
+            comment_like = cursor.fetchone()
+        except Exception as e:
+            print(e)
+        finally:
+            if(cursor !=None):
+                cursor.close()
+            if(conn != None):
+                conn.rollback()
+                conn.close()
+            if comment_like or comment_like ==[]:
+                comment_like_dic={
+                    "commentId": tweet[8],
+                    "userId": tweet [0],
+                    "username": tweet[5]
+                }
+                return Response(json.dumps(comment_like_dic, default = str), mimetype="application/json", status=201)
+            else:
+                return Response("failure", mimetype="html/text", status=400)
+    if request.method == "DELETE":
+        login_token = request.json.get("loginToken")
+        comment_id = request.json.get("commentId")
+
+
+
+
+
+
 
             
